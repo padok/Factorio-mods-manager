@@ -41,7 +41,8 @@ def get_file_sha1(file):
     return hasher.hexdigest()
 
 
-parser = argparse.ArgumentParser(description="Install / Update / Remove mods for Factorio")
+parser = argparse.ArgumentParser(
+    description="Install / Update / Remove mods for Factorio")
 
 parser.add_argument('-p', '--path-to-factorio', dest='factorio_path',
                     help="Path to your Factorio folder.")
@@ -85,8 +86,10 @@ parser.add_argument('-v', '--verbose', action='store_true', dest='verbose',
 
 def find_version():
     binary_path = os.path.join(glob['factorio_path'], 'bin/x64/factorio')
-    version_output = subprocess.check_output([binary_path, "--version"], universal_newlines=True)
-    source_version = re.search("Version: (\d+\.\d+)\.\d+ \(build \d+", version_output)
+    version_output = subprocess.check_output(
+        [binary_path, "--version"], universal_newlines=True)
+    source_version = re.search(
+        "Version: (\d+\.\d+)\.\d+ \(build \d+", version_output)
     if source_version:
         main_version = source_version.group(1)
         print("Auto-detected Factorio version %s from binary." % (main_version))
@@ -110,7 +113,8 @@ def write_mods_list(mods_list):
         "mods": mods_list
     }
     if glob['dry_run']:
-        print('Dry-running, would have writed this mods list : %s' % mods_list_json)
+        print('Dry-running, would have writed this mods list : %s' %
+              mods_list_json)
         return
 
     with open(glob['mods_list_path'], 'w') as fd:
@@ -123,10 +127,10 @@ def remove_file(file_path):
             print('Dry-running, would have deleted this file : %s' % file_path)
             return
 
-        print('Removing file : %s' % file_path)
+        #print('Removing file : %s' % file_path)
         os.remove(file_path)
-    else:
-        print('Warning : Asked to deleted this file : %s but it doesn\'t exists !' % file_path)
+    # else:
+        #print('Warning : Asked to deleted this file : %s but it doesn\'t exists !' % file_path)
 
 
 def display_mods_list(mods_list):
@@ -143,19 +147,28 @@ def get_mod_infos(mod):
 
     r = requests.get(request_url)
     if r.status_code != 200:
-        print('Error getting mod "' + mod['name'] + '" infos. Ignoring this mod, please, check your "mod-list.json" file.')
+        print('Error getting mod "' +
+              mod['name'] + '" infos. Ignoring this mod, please, check your "mod-list.json" file.')
         return
 
     if 'releases' not in r.json() and len(r.json()['releases']) == 0:
-        print('Mod "%s" does not seems to have any release ! Skipping...' % (mod['name']))
+        print('Mod "%s" does not seems to have any release ! Skipping...' %
+              (mod['name']))
         return
 
-    sorted_releases = sorted(r.json()['releases'], key=lambda i: datetime.strptime(i['released_at'], '%Y-%m-%dT%H:%M:%S.%fZ'), reverse=True)
-    filtered_releases = [re for re in sorted_releases if re['info_json']['factorio_version'] in [glob['factorio_version']]]
+    sorted_releases = sorted(r.json()['releases'], key=lambda i: datetime.strptime(
+        i['released_at'], '%Y-%m-%dT%H:%M:%S.%fZ'), reverse=True)
+    filtered_releases = [re for re in sorted_releases if re['info_json']
+                         ['factorio_version'] in [glob['factorio_version']]]
 
     if 'forced' in mod and mod['forced'] == True:
-        filtered_releases = sorted_releases
-    
+        from packaging import version
+        filtered_releases = [re for re in sorted_releases if version.parse(re['info_json']
+                                                                           ['factorio_version']) < version.parse(glob['factorio_version'])]
+
+        print(filtered_releases)
+        print(glob['factorio_version'])
+
     mods_infos = {
         'name': mod['name'],
         'enabled': mod['enabled'],
@@ -169,7 +182,8 @@ def get_mod_infos(mod):
 def check_file_and_sha(file_path, sha1):
     # We assume that a file with the same name and SHA1 is up to date
     if os.path.exists(file_path) and sha1 == get_file_sha1(file_path):
-        print('A file already exists at the path "%s" and is identical (same SHA1), skipping...' % (file_path))
+        print('A file already exists at the path "%s" and is identical (same SHA1), skipping...' % (
+            file_path))
         return True
 
     return False
@@ -184,25 +198,31 @@ def update_mods(enabled_only):
         mod_infos = get_mod_infos(mod)
 
         if enabled_only and mod_infos['enabled'] is False:
-            print('Mod %s is disable and --update-enabled-only has been used. Skipping...' % (mod_infos['name']))
+            print('Mod %s is disable and --update-enabled-only has been used. Skipping...' %
+                  (mod_infos['name']))
             continue
 
         if len(mod_infos['same_version_releases']) == 0:
-            print('No matching version found for the mod "%s". Skipping...' % (mod['name']))
+            print('No matching version found for the mod "%s". Skipping...' %
+                  (mod['name']))
             continue
 
-        delete_list = [release for release in mod_infos['releases'] if release['file_name'] not in [mod_infos['same_version_releases'][0]['file_name']]]
+        delete_list = [release for release in mod_infos['releases'] if release['file_name'] not in [
+            mod_infos['same_version_releases'][0]['file_name']]]
         for release in delete_list:
-            file_path = os.path.join(glob['mods_folder_path'], release['file_name'])
-            print('Removing old release file : %s' % file_path)
+            file_path = os.path.join(
+                glob['mods_folder_path'], release['file_name'])
+            #print('Removing old release file : %s' % file_path)
             remove_file(file_path)
 
-        file_path = os.path.join(glob['mods_folder_path'], mod_infos['same_version_releases'][0]['file_name'])
+        file_path = os.path.join(
+            glob['mods_folder_path'], mod_infos['same_version_releases'][0]['file_name'])
         if check_file_and_sha(file_path, mod_infos['same_version_releases'][0]['sha1']):
             continue
 
         print('Downloading mod %s' % (mod_infos['name']))
-        download_mod(file_path, mod_infos['same_version_releases'][0]['download_url'])
+        download_mod(
+            file_path, mod_infos['same_version_releases'][0]['download_url'])
 
         # Save globaly that a reload of Factorio is needed in the end.
         glob['has_to_reload'] = True
@@ -225,13 +245,16 @@ def install_mod(mod_name):
     mods_list.append(mod)
     write_mods_list(mods_list)
 
-    file_path = os.path.join(glob['mods_folder_path'], mod_infos['same_version_releases'][0]['file_name'])
+    file_path = os.path.join(
+        glob['mods_folder_path'], mod_infos['same_version_releases'][0]['file_name'])
     if check_file_and_sha(file_path, mod_infos['same_version_releases'][0]['sha1']):
         return
 
     print('Downloading mod %s' % (mod_infos['name']))
-    file_path = os.path.join(glob['mods_folder_path'], mod_infos['same_version_releases'][0]['file_name'])
-    download_mod(file_path, mod_infos['same_version_releases'][0]['download_url'])
+    file_path = os.path.join(
+        glob['mods_folder_path'], mod_infos['same_version_releases'][0]['file_name'])
+    download_mod(
+        file_path, mod_infos['same_version_releases'][0]['download_url'])
 
     # Save globaly that a reload of Factorio is needed in the end.
     glob['has_to_reload'] = True
@@ -274,15 +297,18 @@ def remove_mod(mod_name):
 
 def download_mod(file_path, download_url):
     if glob['dry_run']:
-        print('Dry-running, would have downloaded (hiding credentials) : %s' % ('https://mods.factorio.com' + download_url))
+        print('Dry-running, would have downloaded (hiding credentials) : %s' %
+              ('https://mods.factorio.com' + download_url))
         return
 
     payload = {'username': glob['username'], 'token': glob['token']}
-    r = requests.get('https://mods.factorio.com' + download_url, params=payload, stream=True)
+    r = requests.get('https://mods.factorio.com' +
+                     download_url, params=payload, stream=True)
 
     if r.headers.get('Content-Type') != 'application/zip':
         print('Error : Response is not a Zip file !')
-        print('It might happen because your Username and/or Token are wrong or deactivated.')
+        print(
+            'It might happen because your Username and/or Token are wrong or deactivated.')
         print('Abording the mission...')
         exit(1)
 
@@ -305,7 +331,8 @@ def download_mod(file_path, download_url):
 
 
 def update_state_mods(mods_name_list, should_enable):
-    print('%s mod(s) %s' % ('Enabling' if should_enable else 'Disabling', mods_name_list))
+    print('%s mod(s) %s' %
+          ('Enabling' if should_enable else 'Disabling', mods_name_list))
 
     mods_list = read_mods_list(False)
     for mod in mods_list:
@@ -323,34 +350,44 @@ def load_config(args):
     with open(os.path.join(__location__, 'config.json'), 'r') as fd:
         config = json.load(fd)
 
-    glob['should_reload'] = args.should_reload if args.should_reload else (config['should_reload'] if "should_reload" in config else False)
-    glob['service_name'] = args.service_name if args.service_name else (config['service_name'] if "service_name" in config else None)
+    glob['should_reload'] = args.should_reload if args.should_reload else (
+        config['should_reload'] if "should_reload" in config else False)
+    glob['service_name'] = args.service_name if args.service_name else (
+        config['service_name'] if "service_name" in config else None)
     if glob['should_reload'] and (glob['service_name'] is None):
-        parser.error('Reload of Factorio is enabled but no service name was given. Set it in "config.json" or by passing -s argument.')
+        parser.error(
+            'Reload of Factorio is enabled but no service name was given. Set it in "config.json" or by passing -s argument.')
         return False
 
-    glob['factorio_path'] = os.path.abspath(args.factorio_path) if args.factorio_path else (config['factorio_path'] if "factorio_path" in config else False)
+    glob['factorio_path'] = os.path.abspath(args.factorio_path) if args.factorio_path else (
+        config['factorio_path'] if "factorio_path" in config else False)
     if glob['factorio_path'] is False:
         print('Factorio Path not correctly set. Set it in "config.json" or by passing -p argument.')
         return False
 
     glob['mods_folder_path'] = os.path.join(glob['factorio_path'], 'mods')
     if not os.path.exists(glob['mods_folder_path']) and not os.path.isdir(glob['mods_folder_path']):
-        print('Factorio mod folder cannot be found in %s' % (glob['mods_folder_path']))
+        print('Factorio mod folder cannot be found in %s' %
+              (glob['mods_folder_path']))
         return False
 
-    glob['mods_list_path'] = os.path.join(glob['mods_folder_path'], 'mod-list.json')
+    glob['mods_list_path'] = os.path.join(
+        glob['mods_folder_path'], 'mod-list.json')
     if not os.path.exists(glob['mods_list_path']) and not os.path.isfile(glob['mods_list_path']):
-        print('Factorio mod list file cannot be found in %s' % (glob['mods_list_path']))
+        print('Factorio mod list file cannot be found in %s' %
+              (glob['mods_list_path']))
         return False
 
-    glob['username'] = args.username or (config['username'] if "username" in config else "")
-    glob['token'] = args.token or (config['token'] if "token" in config else "")
+    glob['username'] = args.username or (
+        config['username'] if "username" in config else "")
+    glob['token'] = args.token or (
+        config['token'] if "token" in config else "")
     if glob['username'] == "" or glob['username'] == "":
         print('Username and/or Token not correctly set. Set them in "config.json" or by passing -u / -t arguments. See README on how to obtain them.')
         return False
 
-    glob['verbose'] = args.verbose or (config['verbose'] if "verbose" in config else False)
+    glob['verbose'] = args.verbose or (
+        config['verbose'] if "verbose" in config else False)
     glob['dry_run'] = args.dry_run
     glob['factorio_version'] = find_version()
 
@@ -402,14 +439,16 @@ def main():
         print('The mod configuration changed and Factorio need to be restarted in order to apply the changes.')
 
         if glob['dry_run']:
-            print('Dry-running, would have%sautomaticaly reloaded' % (" NOT " if glob['should_reload'] is False else ""))
+            print('Dry-running, would have%sautomaticaly reloaded' %
+                  (" NOT " if glob['should_reload'] is False else ""))
             return
 
         if glob['should_reload'] is True:
             print('Reloading service %s' % (glob['service_name']))
             os.system('systemctl restart %s' % (glob['service_name']))
         else:
-            print('Automatic reload has been disabled, please restart Factorio by yourself.')
+            print(
+                'Automatic reload has been disabled, please restart Factorio by yourself.')
 
     print('Finished !')
     exit(0)
